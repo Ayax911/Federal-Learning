@@ -25,9 +25,15 @@ events.out.tfevents.*
 *.log
 *.csv.gz
 
-# Data (never commit raw medical data)
+# Data (never commit raw medical data or images)
 data/
 !data/.gitkeep
+
+# Archivos internos del proyecto / documentación generada
+mammobench_info/
+guia_explicativa.docx
+guia_implementacion.docx
+PROMPT_PARA_MODIFICACIONES.md
 
 # Tests / coverage
 .pytest_cache/
@@ -35,3 +41,15 @@ data/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+
+# Data
+data/
+!data/.gitkeep
+
+# Archivos internos
+mammobench_info/
+guia_explicativa.docx
+guia_implementacion.docx
+PROMPT_PARA_MODIFICACIONES.md
+
+

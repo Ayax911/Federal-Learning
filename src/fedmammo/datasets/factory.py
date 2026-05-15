@@ -10,6 +10,7 @@ from __future__ import annotations
 from fedmammo.configs.schema import ExperimentConfig
 from fedmammo.datasets.base import MammographyDataset
 from fedmammo.datasets.cbis_ddsm import CBISDDSMDataset
+from fedmammo.datasets.mammo_bench import MammoBenchDataset
 from fedmammo.datasets.synthetic import SyntheticMammographyDataset
 from fedmammo.datasets.transforms import build_transforms
 from fedmammo.datasets.vindr_mammo import VinDrMammoDataset
@@ -65,6 +66,23 @@ def build_dataset(cfg: ExperimentConfig) -> dict[str, MammographyDataset]:
             image_root=cfg.data.image_root,
             val_fraction=cfg.data.val_fraction,
             birads_3_policy=cfg.data.birads_3_policy,
+            seed=cfg.seed,
+            grayscale=cfg.data.grayscale,
+            transform_train=train_tx,
+            transform_eval=eval_tx,
+        )
+    if name == "mammo_bench":
+        if not cfg.data.manifest_path or not cfg.data.image_root:
+            raise ValueError(
+                "data.name=mammo_bench requires both `manifest_path` and `image_root`."
+            )
+        return MammoBenchDataset.from_manifest(
+            manifest_path=cfg.data.manifest_path,
+            image_root=cfg.data.image_root,
+            normal_policy=cfg.data.normal_policy,
+            image_format=cfg.data.image_format,
+            val_fraction=cfg.data.val_fraction,
+            test_fraction=cfg.data.test_fraction,
             seed=cfg.seed,
             grayscale=cfg.data.grayscale,
             transform_train=train_tx,

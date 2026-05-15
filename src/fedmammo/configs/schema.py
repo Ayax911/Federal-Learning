@@ -36,12 +36,12 @@ class DataConfig:
 
     Attributes:
         name: Dataset identifier registered in :mod:`fedmammo.datasets.factory`.
-            One of ``cbis_ddsm``, ``vindr_mammo``, ``synthetic``.
-        manifest_path: Optional path to a CSV manifest (CBIS-DDSM).
+            One of ``cbis_ddsm``, ``vindr_mammo``, ``synthetic``, ``mammo_bench``.
+        manifest_path: Optional path to a CSV manifest (CBIS-DDSM, Mammo-Bench).
         annotations_path: Optional path to breast-level annotations (VinDr-Mammo).
         image_root: Root directory containing the image files.
-        image_format: ``png`` or ``dicom``. Only consulted by loaders that
-            accept multiple formats.
+        image_format: ``png``, ``jpg``, or ``dicom``. Only consulted by loaders
+            that accept multiple formats.
         image_size: Square resize target (height == width).
         grayscale: If True, load images as 1-channel; otherwise broadcast to 3.
         num_classes: Should remain 2 for binary classification.
@@ -53,13 +53,16 @@ class DataConfig:
             same condition.
         birads_3_policy: VinDr-Mammo only. How to map BI-RADS 3:
             ``drop`` (default), ``benign``, or ``malignant``.
+        normal_policy: Mammo-Bench only. How to treat rows whose
+            ``classification`` column is ``Normal``: map to benign (``benign``,
+            default) or drop them (``drop``).
         synthetic_num_samples: For the synthetic loader, how many samples to
             generate per split.
         columns: Column-name mapping for tabular manifests.
         balance_classes: If True, build a WeightedRandomSampler at train time.
     """
 
-    name: Literal["cbis_ddsm", "vindr_mammo", "synthetic"] = "synthetic"
+    name: Literal["cbis_ddsm", "vindr_mammo", "synthetic", "mammo_bench"] = "synthetic"
     manifest_path: str | None = None
     annotations_path: str | None = None
     image_root: str | None = None
@@ -72,6 +75,7 @@ class DataConfig:
     val_fraction: float = 0.1
     test_fraction: float = 0.1
     birads_3_policy: Literal["drop", "benign", "malignant"] = "drop"
+    normal_policy: Literal["benign", "drop"] = "benign"
     synthetic_num_samples: int = 256
     columns: DataColumnMapping = field(default_factory=DataColumnMapping)
     balance_classes: bool = True
@@ -230,10 +234,12 @@ class StrategyConfig:
 
 @dataclass
 class FederatedConfig:
-    """Flower simulation parameters.
+    """Flower simulation / gRPC parameters.
 
     Attributes:
         num_clients: Number of simulated clients (i.e. virtual hospitals).
+            In real gRPC mode this is informational; the actual count is
+            determined by ``min_*_clients`` and which devices connect.
         rounds: Number of FL rounds.
         fraction_fit: Fraction of clients sampled for training per round.
         fraction_evaluate: Fraction sampled for federated evaluation per round.
@@ -241,7 +247,12 @@ class FederatedConfig:
         min_evaluate_clients: Hard minimum for evaluation selection.
         min_available_clients: Minimum clients before a round starts.
         accept_failures: Whether to tolerate individual client failures.
-        ray_init_args: Forwarded to Ray (CPU / GPU per-client quotas).
+        client_resources: Per-client Ray quotas (simulation only).
+        ray_init_args: Forwarded to Ray (simulation only).
+        server_address: ``HOST:PORT`` the gRPC server binds to / clients
+            connect to. Used only by ``run_grpc_server`` and the standalone
+            client script; ignored by ``run_simulation``.
+        strategy: Strategy selection (see :class:`StrategyConfig`).
     """
 
     num_clients: int = 4
@@ -256,6 +267,7 @@ class FederatedConfig:
         default_factory=lambda: {"num_cpus": 1.0, "num_gpus": 0.0}
     )
     ray_init_args: dict[str, Any] = field(default_factory=dict)
+    server_address: str = "0.0.0.0:8080"
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
 
 
