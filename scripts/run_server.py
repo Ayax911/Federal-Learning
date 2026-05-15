@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Override cfg.federated.server_address. "
-            "Format: HOST:PORT (e.g. 0.0.0.0:8080). "
+            "Format: 192.168.15.59:8080"
             "Clients must use the server's LAN IP (e.g. 192.168.1.10:8080)."
         ),
     )
