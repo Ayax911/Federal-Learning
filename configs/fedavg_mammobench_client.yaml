@@ -44,6 +44,7 @@ data:
   batch_size: 32
   grayscale: true
   normal_policy: benign
+  num_workers: 0        # Evita conflicto entre gRPC fork() y workers de DataLoader.
   val_fraction: 0.15    # 15% de los datos locales se reservan para validación.
   test_fraction: 0.0    # El nodo no tiene test set; la evaluación global es del servidor.
   balance_classes: true

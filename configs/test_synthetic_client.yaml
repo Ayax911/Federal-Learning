@@ -12,6 +12,7 @@ data:
   val_fraction: 0.2
   test_fraction: 0.0
   synthetic_num_samples: 100
+  num_workers: 0
 
 model:
   name: resnet18

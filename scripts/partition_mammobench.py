@@ -41,9 +41,9 @@ import pandas as pd
 # Partition map
 # ---------------------------------------------------------------------------
 PARTITION_MAP: dict[str, list[str]] = {
-    "node0": ["ddsm"],                                        # EE.UU.
-    "node1": ["cmmd"],                                        # China
-    "server_test": ["ibia", "kau-bcmd", "cdd-cesm", "inbreast", "dmid"],  # test centralizado
+    "node0": ["cmmd"],                                        # China
+    "node1": ["dmid"],                                        # Desconocido
+    "server_test": ["ibia", "kau-bcmd", "cdd-cesm", "inbreast", "ddsm"],  # test centralizado
 }
 
 SUSPICIOUS_LABEL = "Suspicious Malignant"
