@@ -19,10 +19,10 @@ class EfficientNetB0Classifier(nn.Module):
 
     def __init__(self, cfg: ModelConfig) -> None:
         super().__init__()
-        from torchvision.models import EfficientNet_B0_Weights, efficientnet_b0
+        # weights=None always: the factory calls load_weights() after building.
+        from torchvision.models import efficientnet_b0
 
-        weights = EfficientNet_B0_Weights.DEFAULT if cfg.pretrained else None
-        backbone = efficientnet_b0(weights=weights)
+        backbone = efficientnet_b0(weights=None)
 
         # First conv lives at backbone.features[0][0].
         first_conv = backbone.features[0][0]

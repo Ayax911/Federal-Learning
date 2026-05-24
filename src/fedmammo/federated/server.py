@@ -172,9 +172,9 @@ def _make_on_fit_config_fn(cfg: ExperimentConfig):
     """Return a per-round config function sent to clients in ``fit``."""
 
     def fn(server_round: int) -> dict[str, Scalar]:
-        # Hook for per-round LR or local-epoch schedules; minimal default.
         return {
             "server_round": server_round,
+            "current_round": server_round,  # read by apply_freeze_policy progressive unfreeze
             "local_epochs": cfg.training.local_epochs,
         }
 

@@ -190,5 +190,110 @@ def test_federated_client_fit_evaluate() -> None:
     assert isinstance(loss, float)
 
 
+def test_partitioning_patient_disjoint() -> None:
+    """All images of a patient must land on exactly one client."""
+    import numpy as np
+    from fedmammo.datasets.partitioning import partition_indices
+
+    # 8 patients × 3 images = 24 samples; binary labels, balanced.
+    n_patients = 8
+    per_patient = 3
+    patient_ids = np.repeat([f"P{i}" for i in range(n_patients)], per_patient)
+    labels = np.tile([0, 1], (n_patients * per_patient) // 2 + 1)[: n_patients * per_patient]
+
+    for scheme in ("iid", "dirichlet", "quantity_skew"):
+        parts = partition_indices(
+            labels,
+            num_clients=2,
+            patient_ids=patient_ids,
+            scheme=scheme,
+            alpha=1.0,
+            min_per_client=1,
+            max_retries=50,
+            seed=42,
+        )
+        assert len(parts) == 2
+        assert sum(len(p) for p in parts) == len(labels), f"{scheme}: total index mismatch"
+
+        client_patients = [set(patient_ids[i] for i in p) for p in parts]
+        for ci in range(len(client_patients)):
+            for cj in range(ci + 1, len(client_patients)):
+                overlap = client_patients[ci] & client_patients[cj]
+                assert not overlap, (
+                    f"scheme={scheme}: patient overlap between client {ci} and {cj}: {overlap}"
+                )
+
+
+def test_fedprox_proximal_term_applied() -> None:
+    """FedProx with mu>0 must produce different updates than FedAvg (mu=0)."""
+    import torch
+    import numpy as np
+
+    from fedmammo.datasets import build_dataset, partition_indices
+    from fedmammo.federated.client import FedMammoClient
+    from fedmammo.federated.param_utils import state_dict_to_ndarrays
+    from fedmammo.models import build_model
+
+    cfg = _make_cfg(image_size=32, num_samples=64, num_clients=2)
+    datasets = build_dataset(cfg)
+    parts = partition_indices(datasets["train"].labels, num_clients=2, scheme="iid", seed=0)
+    sub_train = datasets["train"].subset(parts[0])
+    device = torch.device("cpu")
+
+    template = build_model(cfg.model).to(device)
+    init_params = state_dict_to_ndarrays(template)
+
+    # FedAvg: mu=0
+    client_avg = FedMammoClient(0, cfg, sub_train, None, device)
+    params_avg, _, _ = client_avg.fit(init_params, {"local_epochs": 1, "proximal_mu": 0.0})
+
+    # FedProx: strong mu to guarantee visible difference
+    client_prox = FedMammoClient(0, cfg, sub_train, None, device)
+    params_prox, _, _ = client_prox.fit(init_params, {"local_epochs": 1, "proximal_mu": 10.0})
+
+    diffs = [np.linalg.norm(a - b) for a, b in zip(params_avg, params_prox, strict=True)]
+    assert any(d > 1e-6 for d in diffs), (
+        "FedProx with mu=10.0 must produce different parameters than FedAvg"
+    )
+
+
+def test_evaluate_nan_metric_omitted_not_zero() -> None:
+    """NaN metrics (e.g. roc_auc on single-class val set) must be omitted, not 0.0."""
+    import torch
+
+    from fedmammo.datasets import build_dataset, partition_indices
+    from fedmammo.datasets.synthetic import SyntheticMammographyDataset
+    from fedmammo.datasets.transforms import build_transforms
+    from fedmammo.configs.schema import AugmentationConfig
+    from fedmammo.federated.client import FedMammoClient
+    from fedmammo.federated.param_utils import state_dict_to_ndarrays
+    from fedmammo.models import build_model
+
+    cfg = _make_cfg(image_size=32, num_samples=64, num_clients=2)
+    datasets = build_dataset(cfg)
+    parts = partition_indices(datasets["train"].labels, num_clients=2, scheme="iid", seed=0)
+    sub_train = datasets["train"].subset(parts[0])
+    device = torch.device("cpu")
+
+    # Force a single-class val set so roc_auc is NaN.
+    _, eval_tx = build_transforms(32, AugmentationConfig(), grayscale=True)
+    mono_val = SyntheticMammographyDataset(
+        num_samples=16, image_size=32, grayscale=True, seed=7,
+        positive_fraction=0.0, transform=eval_tx,  # all-benign
+    )
+    assert len(set(mono_val.labels.tolist())) == 1, "val set must be single-class"
+
+    template = build_model(cfg.model).to(device)
+    init_params = state_dict_to_ndarrays(template)
+
+    client = FedMammoClient(0, cfg, sub_train, mono_val, device)
+    _, _, eval_metrics = client.evaluate(init_params, {})
+
+    # roc_auc must not be present (NaN → omitted) or, if present, must not be 0.0
+    assert "roc_auc" not in eval_metrics or eval_metrics["roc_auc"] != 0.0, (
+        "roc_auc=0.0 indicates the NaN-to-zero bug is still present"
+    )
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-x", "-v"]))

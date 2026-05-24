@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.12"
 license = { text = "MIT" }
 authors = [
-    { name = "Julian Ojeda Aviles", email = "ojedaavilesjulian@gmail.com" }
+    { name = "Julian Ojeda Aviles", email = "julianojeda11229077@correo.itm.edu.co" }
 ]
 keywords = ["federated-learning", "flower", "pytorch", "medical-imaging", "mammography"]
 classifiers = [

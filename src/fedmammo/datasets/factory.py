@@ -33,7 +33,7 @@ def build_dataset(cfg: ExperimentConfig) -> dict[str, MammographyDataset]:
     train_tx, eval_tx = build_transforms(
         image_size=cfg.data.image_size,
         augmentation=cfg.training.augmentation,
-        grayscale=cfg.data.grayscale,
+        in_channels=cfg.model.in_channels,
     )
 
     name = cfg.data.name

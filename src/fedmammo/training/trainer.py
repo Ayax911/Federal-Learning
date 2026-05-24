@@ -73,11 +73,30 @@ class Trainer:
 
     # ------------------------------------------------------------------
 
-    def train_one_epoch(self, loader: DataLoader, *, epoch: int) -> dict[str, float]:
-        """Run a single epoch and return mean loss + sample count."""
+    def train_one_epoch(
+        self,
+        loader: DataLoader,
+        *,
+        epoch: int,
+        proximal_mu: float = 0.0,
+        global_params: list[torch.Tensor] | None = None,
+    ) -> dict[str, float]:
+        """Run a single epoch and return mean loss + sample count.
+
+        Args:
+            loader: Training DataLoader.
+            epoch: Current epoch index (used for logging).
+            proximal_mu: FedProx regularization strength. When > 0 and
+                ``global_params`` is provided, adds
+                ``(mu/2) * ||w - w_global||²`` to the task loss each batch.
+            global_params: Frozen copy of the global model parameters received
+                from the server at the start of the round. Required when
+                ``proximal_mu > 0``; ignored otherwise.
+        """
         self.model.train()
         total_loss = 0.0
         n_samples = 0
+        use_prox = proximal_mu > 0.0 and global_params is not None
         for images, targets in loader:
             images = images.to(self.device, non_blocking=True)
             targets = targets.to(self.device, non_blocking=True).long()
@@ -87,6 +106,12 @@ class Trainer:
                 with torch.cuda.amp.autocast():
                     logits = self.model(images)
                     loss = self.criterion(logits, targets)
+                    if use_prox:
+                        prox = sum(
+                            ((p - g) ** 2).sum()
+                            for p, g in zip(self.model.parameters(), global_params, strict=True)
+                        )
+                        loss = loss + (proximal_mu / 2.0) * prox
                 self._scaler.scale(loss).backward()
                 if self.grad_clip_norm > 0:
                     self._scaler.unscale_(self.optimizer)
@@ -96,6 +121,12 @@ class Trainer:
             else:
                 logits = self.model(images)
                 loss = self.criterion(logits, targets)
+                if use_prox:
+                    prox = sum(
+                        ((p - g) ** 2).sum()
+                        for p, g in zip(self.model.parameters(), global_params, strict=True)
+                    )
+                    loss = loss + (proximal_mu / 2.0) * prox
                 loss.backward()
                 if self.grad_clip_norm > 0:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip_norm)

@@ -33,6 +33,7 @@ from fedmammo.federated.param_utils import (
     state_dict_to_ndarrays,
 )
 from fedmammo.models import build_model
+from fedmammo.models.weight_loaders import apply_freeze_policy
 from fedmammo.training import Trainer, build_loss, build_optimizer
 from fedmammo.utils.device import resolve_device
 from fedmammo.utils.logging_utils import get_logger
@@ -112,7 +113,17 @@ class FedMammoClient(fl.client.NumPyClient):
         self, parameters: NDArrays, config: dict[str, Scalar]
     ) -> tuple[NDArrays, int, dict[str, Scalar]]:
         load_ndarrays_to_state_dict(self.model, parameters, strict=True)
+        current_round = int(config.get("current_round", 0))
+        apply_freeze_policy(self.model, self.cfg.model, current_round=current_round)
         local_epochs = int(config.get("local_epochs", self.cfg.training.local_epochs))
+        proximal_mu = float(config.get("proximal_mu", 0.0))
+
+        # Capture global parameters before any local update so the proximal
+        # term can measure drift from the server's model.
+        global_params: list[torch.Tensor] | None = None
+        if proximal_mu > 0.0:
+            global_params = [p.detach().clone() for p in self.model.parameters()]
+
         # Fresh optimizer each round — standard in Flower; cross-round state
         # would otherwise pollute aggregation.
         optimizer = build_optimizer(self.model, self.cfg.training.optimizer)
@@ -127,7 +138,12 @@ class FedMammoClient(fl.client.NumPyClient):
         )
         last: dict[str, Any] = {}
         for ep in range(local_epochs):
-            last = trainer.train_one_epoch(self.train_loader, epoch=ep)
+            last = trainer.train_one_epoch(
+                self.train_loader,
+                epoch=ep,
+                proximal_mu=proximal_mu,
+                global_params=global_params,
+            )
         n_samples = int(last.get("samples", len(self.train_loader.dataset)))  # type: ignore[arg-type]
         train_loss = float(last.get("loss", 0.0))
         metrics: dict[str, Scalar] = {
@@ -155,11 +171,19 @@ class FedMammoClient(fl.client.NumPyClient):
             "sensitivity",
             "specificity",
         )
-        metrics: dict[str, Scalar] = {
-            k: float(result[k]) if not np.isnan(float(result[k])) else 0.0
-            for k in numeric_keys
-            if k in result
-        }
+        metrics: dict[str, Scalar] = {}
+        for k in numeric_keys:
+            if k not in result:
+                continue
+            v = float(result[k])
+            if np.isnan(v):
+                _logger.debug(
+                    "client %d: metric %r is NaN (likely single-class batch); omitting from aggregation",
+                    self.client_id,
+                    k,
+                )
+                continue
+            metrics[k] = v
         metrics["client_id"] = self.client_id
         return loss, n_samples, metrics
 
@@ -182,9 +206,23 @@ def _materialize_client_partitions(
     train_ds = datasets["train"]
     val_ds = datasets.get("val")
     labels = train_ds.labels
+
+    # Build patient-id array; fall back to sample-level partitioning when any
+    # patient_id is None (e.g. incomplete annotations or fully synthetic data).
+    raw_pids = train_ds.patient_ids
+    if any(pid is None for pid in raw_pids):
+        _logger.warning(
+            "Some training samples have no patient_id; falling back to "
+            "sample-level partitioning (patient leakage not prevented)."
+        )
+        patient_ids_arr = None
+    else:
+        patient_ids_arr = np.asarray(raw_pids, dtype=object)
+
     client_indices = partition_indices(
         labels,
         num_clients=cfg.federated.num_clients,
+        patient_ids=patient_ids_arr,
         scheme=cfg.partitioning.scheme,
         alpha=cfg.partitioning.alpha,
         min_per_client=cfg.partitioning.min_per_client,

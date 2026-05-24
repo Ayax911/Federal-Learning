@@ -43,16 +43,26 @@ def _weighted_average(metrics: list[tuple[int, Metrics]]) -> dict[str, Scalar]:
     return agg
 
 
+def _default_fit_config(server_round: int) -> dict[str, Scalar]:
+    """Default per-round config injected into every client's FitIns.
+
+    Clients read ``current_round`` to apply progressive unfreezing via
+    :func:`~fedmammo.models.weight_loaders.apply_freeze_policy`.
+    """
+    return {"current_round": server_round}
+
+
 @register_strategy("fedavg")
 def build_fedavg(**kwargs: Any) -> FedAvg:
     """Build a FedAvg strategy with metric aggregation pre-wired.
 
     All kwargs are forwarded to :class:`flwr.server.strategy.FedAvg`. The
-    factory only injects sensible defaults for the metric aggregation
-    callbacks; callers can still override them.
+    factory injects sensible defaults for metric aggregation and per-round
+    config; callers can override them.
     """
     kwargs.setdefault("fit_metrics_aggregation_fn", _weighted_average)
     kwargs.setdefault("evaluate_metrics_aggregation_fn", _weighted_average)
+    kwargs.setdefault("on_fit_config_fn", _default_fit_config)
     _logger.info("Building FedAvg strategy with kwargs: %s", sorted(kwargs.keys()))
     return FedAvg(**kwargs)
 
