@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.9.0] — 2026-07-31
+
+### Fixes
+
+- **Resize interpolation changed from bilinear to area-based
+  (`cv2.INTER_AREA`).** `build_transforms()` (`datasets/transforms.py`) never
+  set `A.Resize`'s `interpolation` argument, so every train/eval pipeline
+  silently used Albumentations' default, `cv2.INTER_LINEAR`. Every image in
+  this benchmark's manifests is larger than `data.image_size` (native sizes
+  sampled in the 500×1334–962×2052 px range vs. `image_size=224` in every
+  config), i.e. the resize step is always a downscale — the case where
+  OpenCV recommends `INTER_AREA` over bilinear (less aliasing/moiré, sharper
+  perceived edges/texture in the resized breast tissue). This is a default
+  behavior change: it alters resized pixel values for every config, past and
+  future. Historical results (exp07–exp61+) remain valid as a record of what
+  was run, but re-running the same YAML today no longer reproduces those
+  runs pixel-for-pixel (random init/augmentation already dominated that
+  variance in practice, so this is not expected to materially change
+  reported metrics — flagged here for anyone attempting exact reproduction).
+
+### Features
+
+- **Opt-in aspect-ratio-preserving resize (`augmentation.resize_mode`).**
+  New `AugmentationConfig.resize_mode: Literal["squash", "letterbox"]`
+  (default `"squash"`, i.e. today's behavior — a direct, non-uniform stretch
+  to a square — unchanged for every existing config). Mammography sources
+  are tall rectangles with dataset-dependent aspect ratios (CBIS-DDSM,
+  VinDr-Mammo, Mammo-Bench); squashing them to a square distorts breast
+  anatomy by a different factor per source dataset, a potential confound
+  between datasets. `resize_mode: letterbox` instead does
+  `A.LongestMaxSize(image_size) + A.PadIfNeeded(image_size, image_size,
+  border_mode=BORDER_CONSTANT, value=0)` — scales to fit, then pads with
+  black (matching the black background already typical of cropped
+  mammograms) rather than stretching. Available for new experiments/ablations
+  without touching any already-run config.
+
 ## [0.8.0] — 2026-07-28
 
 ### Features
@@ -64,6 +100,27 @@
   (`round_offset > 0`) — previously these would have looked contradictory in
   `final_summary.txt` (e.g. "6 rounds completed" next to "round #20"). Gated
   so the default (non-resumed) case stays byte-identical.
+- **`model.unfreeze_at_epoch`/`unfreeze_layers` (progressive backbone
+  unfreeze) now actually works for centralized training.** The docstring
+  promised "federated round (or centralized epoch)", but `apply_freeze_policy`
+  was only ever called once per federated round, by `federated/client.py`
+  — `Trainer.fit` never called it at all, so any `centralized.yaml` setting
+  `unfreeze_at_epoch` silently trained with the backbone permanently frozen
+  for the whole run instead. `Trainer.fit` gained `model_cfg=`/`unfreeze_lr=`
+  (both optional, default `None` — no behavior change for the ~56 existing
+  configs, none of which set these) and now applies the freeze policy at the
+  start of every epoch, mirroring the federated client. Because centralized
+  training runs one continuous optimizer across the whole loop (unlike
+  federated, which rebuilds a fresh optimizer every round), newly-unfrozen
+  params aren't yet owned by it — registered via `optimizer.add_param_group`,
+  the same fix already used for the federated *cyclic*
+  (`local_unfreeze_at_epoch`) unfreeze. `scripts/run_centralized.py` threads
+  `cfg.model` and the resolved `lr_backbone` (or `lr` if unset) through.
+  Known limitation: `--resume` combined with a crash that lands *after* the
+  unfreeze threshold fails loudly (`optimizer.load_state_dict` param-group
+  count mismatch) rather than silently — the freshly-rebuilt optimizer before
+  a resume-load only has the original group(s); resuming past that point
+  currently means dropping `--resume` and accepting the lost partial epochs.
 
 ## [0.7.0] — 2026-07-28
 
