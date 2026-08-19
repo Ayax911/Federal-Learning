@@ -1,17 +1,17 @@
 {
   "os":  "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
   "python":  "CPython 3.12.8",
-  "startedAt":  "2026-08-18T23:35:39.988539Z",
+  "startedAt":  "2026-08-19T01:50:32.359253Z",
   "args":  [
     "-f",
-    "/tmp/tmpsfcyszvb.json"
+    "/tmp/tmpoicvw4y9.json"
   ],
   "program":  "<python with no main file>",
   "git":  {
     "remote":  "git@github.com:Ayax911/Federal-Learning.git",
-    "commit":  "b52138490ecc4dd4b1fc181f5859ece0076ffb86"
+    "commit":  "e0b9f4a9fb1f2bbbc949b7f6f950a0eda211218a"
   },
-  "root":  "/media/imagenesmedicas/DATA1/01-ImagenesMedicas-US1/13-PregradoJulian/Federal Learning/infraestructura federada/Federal-Learning/runs/exp35_resnet50_radimagenet_mammobench_frozen_mlp05_cebalanced_lr1e-4_img256_bs16_wandb",
+  "root":  "/media/imagenesmedicas/DATA1/01-ImagenesMedicas-US1/13-PregradoJulian/Federal Learning/infraestructura federada/Federal-Learning/runs/exp36_resnet50_radimagenet_mammobench_frozen_mlp05_cebalanced_lr1e-4_img256_bs16_wandb",
   "host":  "labmirp-Precision-5860-Tower",
   "executable":  "/media/imagenesmedicas/DATA1/01-ImagenesMedicas-US1/13-PregradoJulian/Federal Learning/infraestructura federada/Federal-Learning/.venv/bin/python",
   "cpu_count":  6,
@@ -21,7 +21,7 @@
   "disk":  {
     "/":  {
       "total":  "195722883072",
-      "used":  "136190496768"
+      "used":  "136529367040"
     }
   },
   "memory":  {
@@ -37,5 +37,5 @@
     }
   ],
   "cudaVersion":  "13.0",
-  "writerId":  "3cmkuwktcz3z4orjjglbm626l779r858"
+  "writerId":  "cw54c8notlwcqrh6ckzilq71n3mojhwu"
 }

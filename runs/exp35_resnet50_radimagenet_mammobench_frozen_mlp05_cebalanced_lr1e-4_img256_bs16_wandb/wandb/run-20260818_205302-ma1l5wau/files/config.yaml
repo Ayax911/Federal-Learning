@@ -2,20 +2,20 @@ _wandb:
     value:
         cli_version: 0.21.4
         e:
-            3cmkuwktcz3z4orjjglbm626l779r858:
+            cdf8alimcfpof28fljxx5iukz27bfmdz:
                 args:
                     - -f
-                    - /tmp/tmpsfcyszvb.json
+                    - /tmp/tmpv1zaw5gc.json
                 cpu_count: 6
                 cpu_count_logical: 12
                 cudaVersion: "13.0"
                 disk:
                     /:
                         total: "195722883072"
-                        used: "136190496768"
+                        used: "136529403904"
                 executable: /media/imagenesmedicas/DATA1/01-ImagenesMedicas-US1/13-PregradoJulian/Federal Learning/infraestructura federada/Federal-Learning/.venv/bin/python
                 git:
-                    commit: b52138490ecc4dd4b1fc181f5859ece0076ffb86
+                    commit: e0b9f4a9fb1f2bbbc949b7f6f950a0eda211218a
                     remote: git@github.com:Ayax911/Federal-Learning.git
                 gpu: NVIDIA RTX 6000 Ada Generation
                 gpu_count: 1
@@ -32,8 +32,8 @@ _wandb:
                 program: <python with no main file>
                 python: CPython 3.12.8
                 root: /media/imagenesmedicas/DATA1/01-ImagenesMedicas-US1/13-PregradoJulian/Federal Learning/infraestructura federada/Federal-Learning/runs/exp35_resnet50_radimagenet_mammobench_frozen_mlp05_cebalanced_lr1e-4_img256_bs16_wandb
-                startedAt: "2026-08-18T23:35:39.988539Z"
-                writerId: 3cmkuwktcz3z4orjjglbm626l779r858
+                startedAt: "2026-08-19T01:53:02.058102Z"
+                writerId: cdf8alimcfpof28fljxx5iukz27bfmdz
         m: []
         python_version: 3.12.8
         t:
